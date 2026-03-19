@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Project } from "@/lib/projects";
 
 const LANGUAGE_COLORS: Record<string, string> = {
@@ -30,11 +29,11 @@ export default function ProjectCard({ project }: { project: Project }) {
     <div className="group rounded-xl border border-neutral-800 bg-neutral-900/50 overflow-hidden transition-all hover:border-neutral-600 hover:bg-neutral-900">
       {project.thumbnail && (
         <div className="relative aspect-video w-full overflow-hidden border-b border-neutral-800">
-          <Image
-            src={project.thumbnail}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`${process.env.__NEXT_ROUTER_BASEPATH ?? ""}${project.thumbnail}`}
             alt={project.name}
-            fill
-            className="object-cover transition-transform group-hover:scale-105"
+            className="absolute inset-0 h-full w-full object-cover transition-transform group-hover:scale-105"
           />
         </div>
       )}
