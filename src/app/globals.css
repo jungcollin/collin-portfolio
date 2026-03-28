@@ -1,105 +1,221 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-background: #FFFFFF;
-  --color-foreground: #000000;
-  --color-gray-50: #F9FAFB;
-  --color-gray-200: #E5E7EB;
-  --color-gray-400: #9CA3AF;
-  --color-gray-600: #4B5563;
-  --font-serif: 'IBM Plex Serif', serif;
-  --font-sans: 'IBM Plex Sans', sans-serif;
-}
-
-/* Base */
-* {
-  border-radius: 0 !important;
+  --color-background: #000000;
+  --color-foreground: #ededed;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-western: var(--font-rye);
 }
 
 body {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font-family: var(--font-sans);
-  font-weight: 400;
+  margin: 0;
+  padding: 0;
+  background: #000;
+  color: #f5f5f5;
+  overflow: hidden;
 }
 
-::selection {
-  background: #000000;
-  color: #FFFFFF;
+/* ─── Cursor blink ─────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.cursor-blink {
+  animation: blink 0.8s step-end infinite;
+  color: #d4a44a;
 }
 
-/* Animations */
-@keyframes menu-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px) scale(0.98);
-  }
-  to {
-    opacity: 1;
+/* ─── Film grain (matches noted.co.kr) ─────── */
+.film-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ─── Vignette ─────────────────────────────── */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
+}
+
+/* ─── NPC breathing animation ──────────────── */
+@keyframes breathe {
+  0%, 100% {
     transform: translateY(0) scale(1);
   }
-}
-
-@keyframes pulse-border {
-  0%, 100% {
-    border-color: #000000;
+  40% {
+    transform: translateY(-4px) scale(1.008);
   }
-  50% {
-    border-color: #333333;
+  70% {
+    transform: translateY(-1px) scale(1.003);
   }
 }
-
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.npc-breathe {
+  animation: breathe 4s ease-in-out infinite;
+  transform-origin: center bottom;
 }
 
-@keyframes scan-line {
-  0% {
-    transform: translateY(-100%);
-  }
-  100% {
-    transform: translateY(100%);
-  }
+/* ─── NPC subtle idle sway ─────────────────── */
+@keyframes idle-sway {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  30% { transform: translateX(2px) rotate(0.3deg); }
+  70% { transform: translateX(-1px) rotate(-0.2deg); }
+}
+.npc-idle {
+  animation: breathe 4s ease-in-out infinite, idle-sway 7s ease-in-out infinite;
+  transform-origin: center bottom;
 }
 
-.animate-menu-in {
-  animation: menu-in 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+/* ─── Background slow drift ────────────────── */
+@keyframes bg-drift {
+  0%, 100% { transform: scale(1.05) translateX(0); }
+  25% { transform: scale(1.06) translateX(-8px); }
+  50% { transform: scale(1.05) translateX(4px); }
+  75% { transform: scale(1.07) translateX(-4px); }
+}
+.scene-saloon {
+  position: relative;
+  overflow: hidden;
+}
+.scene-saloon::before {
+  content: "";
+  position: absolute;
+  inset: -5%;
+  width: 110%;
+  height: 110%;
+  background: linear-gradient(180deg, #0a0500 0%, #1a0f05 30%, #2a1a0a 60%, #1a0f05 85%, #0a0500 100%);
+  animation: bg-drift 20s ease-in-out infinite;
+  z-index: 0;
 }
 
-.animate-pulse-border {
-  animation: pulse-border 2s ease-in-out infinite;
+/* ─── Warm flickering light (candle) ───────── */
+@keyframes flicker {
+  0%, 100% { opacity: 0.12; }
+  5%  { opacity: 0.08; }
+  15% { opacity: 0.14; }
+  25% { opacity: 0.06; }
+  35% { opacity: 0.13; }
+  45% { opacity: 0.07; }
+  55% { opacity: 0.15; }
+  65% { opacity: 0.09; }
+  75% { opacity: 0.11; }
+  85% { opacity: 0.06; }
+  95% { opacity: 0.13; }
+}
+.warm-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 30% 25%, rgba(255, 140, 40, 0.15) 0%, transparent 45%),
+    radial-gradient(ellipse at 70% 30%, rgba(255, 180, 80, 0.1) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 50%, rgba(255, 160, 60, 0.08) 0%, transparent 60%);
+  animation: flicker 3s ease-in-out infinite;
 }
 
-.animate-fade-in-up {
-  animation: fade-in-up 400ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+/* Second light source offset */
+.warm-light-2 {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse at 75% 20%, rgba(255, 120, 30, 0.1) 0%, transparent 40%),
+    radial-gradient(ellipse at 20% 40%, rgba(255, 160, 50, 0.08) 0%, transparent 35%);
+  animation: flicker 4.5s ease-in-out infinite 1s;
+}
+
+/* ─── Floating dust particles ──────────────── */
+@keyframes dust-float {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-100vh) translateX(40px); opacity: 0; }
+}
+.dust-particle {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: rgba(255, 200, 100, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: dust-float linear infinite;
+}
+
+/* ─── Ambient haze/smoke ───────────────────── */
+@keyframes haze-drift {
+  0%, 100% { transform: translateX(-5%) scaleX(1); opacity: 0.03; }
+  50% { transform: translateX(5%) scaleX(1.1); opacity: 0.06; }
+}
+.ambient-haze {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(90deg, transparent 0%, rgba(200, 160, 100, 0.05) 30%, transparent 50%, rgba(200, 160, 100, 0.04) 70%, transparent 100%);
+  animation: haze-drift 12s ease-in-out infinite;
+}
+
+/* ─── Scene: Intro ─────────────────────────── */
+.scene-intro {
+  background: radial-gradient(ellipse at center 60%, #1a0f05 0%, #0a0500 40%, #000 100%);
+}
+
+/* ─── Dialogue area gradient ───────────────── */
+.dialogue-gradient {
+  background: linear-gradient(to top, #000 0%, rgba(0, 0, 0, 0.97) 40%, rgba(0, 0, 0, 0.85) 70%, transparent 100%);
+}
+
+/* ─── Dark overlay ─────────────────────────── */
+.dark-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* ─── Western button hover glow ────────────── */
+.western-btn {
+  position: relative;
+  transition: all 0.3s ease;
+}
+.western-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(180, 120, 40, 0.08);
   opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.western-btn:hover::before {
+  opacity: 1;
+}
+.western-btn:hover {
+  border-color: rgba(180, 120, 40, 0.5);
+  box-shadow: 0 0 20px rgba(180, 120, 40, 0.1);
 }
 
-/* Staggered entrance */
-.stagger-1 { animation-delay: 0ms; }
-.stagger-2 { animation-delay: 80ms; }
-.stagger-3 { animation-delay: 160ms; }
-.stagger-4 { animation-delay: 240ms; }
-.stagger-5 { animation-delay: 320ms; }
-.stagger-6 { animation-delay: 400ms; }
-
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
+/* ─── Menu card fade-slide animation ───────── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-::-webkit-scrollbar-track {
-  background: #FFFFFF;
+/* ─── Hide scrollbar ───────────────────────── */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
-
-::-webkit-scrollbar-thumb {
-  background: #000000;
-  border: 1px solid #FFFFFF;
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

@@ -1,103 +1,458 @@
-import { projects } from "@/lib/projects";
-import ProjectCard from "@/components/ProjectCard";
-import About from "@/components/About";
+"use client";
+
+import { useState, useCallback, useRef, useEffect } from "react";
+import TypeWriter from "@/components/TypeWriter";
+
+const BASE_PATH = process.env.__NEXT_ROUTER_BASEPATH ?? "";
+
+type Scene = "main" | "selfIntro" | "selfIntroDetail";
+type VideoState = "idle" | "effect" | "intro" | "introDetail";
+
+const NPC_LINES: Record<string, string> = {
+  greeting: '"어서 오게, 낯선이... 자네도 내 작업이 궁금해서 왔나?"',
+  selfIntro: '"더지형을 소개해달라고? 좋아, 소개해주지."',
+  selfIntroDetail: '"이 사내가 바로 더지형이야... 코드를 짜고, 게임을 만들고, 이 술집을 운영하는 놈이지."',
+  back: '"더 궁금한 게 있나, 친구?"',
+};
+
+interface MenuItem {
+  id: string;
+  tag: string;
+  label: string;
+  desc: string;
+  url: string | null;
+  action?: "selfIntro";
+}
+
+const MENU_ITEMS: MenuItem[] = [
+  { id: "wanted", tag: "WANTED", label: "더지형", desc: "이 사내는 누구인가?", url: null, action: "selfIntro" },
+  { id: "story", tag: "Grafolio", label: "더지형 이야기", desc: "vlog", url: "https://grafolio.ogq.me/profile/%EB%8D%94%EC%A7%80%ED%98%95/project" },
+  { id: "one-life-relay", tag: "Game", label: "ONE LIFE RELAY", desc: "스테이지 제작, 릴레이 게임", url: "https://jungcollin.github.io/series_game" },
+  { id: "lucky-bite", tag: "LuckyBite", label: "확률 시뮬레이터", desc: "비공개", url: null },
+  { id: "series", tag: "Series", label: "영상 시리즈 서비스", desc: "비공개", url: null },
+  { id: "24h-midnight", tag: "24H Midnight", label: "24시간 심야서비스", desc: "비공개", url: null },
+  { id: "new-museum", tag: "new museum", label: "3D 미술관", desc: "비공개", url: null },
+  { id: "fadepost", tag: "App", label: "fadepost", desc: "비공개", url: null },
+];
+
+const DUST = [
+  { id: 0, left: "5%", size: 2, dur: 10, delay: 0, opacity: 0.3 },
+  { id: 1, left: "12%", size: 1.5, dur: 14, delay: 3, opacity: 0.2 },
+  { id: 2, left: "22%", size: 2.5, dur: 9, delay: 7, opacity: 0.4 },
+  { id: 3, left: "30%", size: 1, dur: 18, delay: 1, opacity: 0.25 },
+  { id: 4, left: "38%", size: 2, dur: 12, delay: 5, opacity: 0.35 },
+  { id: 5, left: "45%", size: 1.8, dur: 15, delay: 9, opacity: 0.2 },
+  { id: 6, left: "52%", size: 2.2, dur: 11, delay: 2, opacity: 0.3 },
+  { id: 7, left: "58%", size: 1.3, dur: 20, delay: 6, opacity: 0.45 },
+  { id: 8, left: "65%", size: 2, dur: 13, delay: 11, opacity: 0.25 },
+  { id: 9, left: "72%", size: 1.6, dur: 16, delay: 4, opacity: 0.3 },
+  { id: 10, left: "78%", size: 2.8, dur: 10, delay: 8, opacity: 0.2 },
+  { id: 11, left: "85%", size: 1.2, dur: 19, delay: 0.5, opacity: 0.35 },
+  { id: 12, left: "90%", size: 2, dur: 14, delay: 10, opacity: 0.4 },
+  { id: 13, left: "95%", size: 1.5, dur: 17, delay: 3.5, opacity: 0.2 },
+  { id: 14, left: "8%", size: 2.3, dur: 12, delay: 6.5, opacity: 0.3 },
+  { id: 15, left: "18%", size: 1, dur: 21, delay: 1.5, opacity: 0.25 },
+  { id: 16, left: "42%", size: 2.5, dur: 11, delay: 8.5, opacity: 0.35 },
+  { id: 17, left: "55%", size: 1.7, dur: 15, delay: 4.5, opacity: 0.2 },
+  { id: 18, left: "68%", size: 2, dur: 13, delay: 7.5, opacity: 0.4 },
+  { id: 19, left: "82%", size: 1.4, dur: 18, delay: 2.5, opacity: 0.3 },
+];
 
 export default function Home() {
+  const [scene, setScene] = useState<Scene>("main");
+  const [showChoices, setShowChoices] = useState(false);
+  const [npcLine, setNpcLine] = useState(NPC_LINES.greeting);
+  const [fadeOut, setFadeOut] = useState(false);
+  const [videoState, setVideoState] = useState<VideoState>("idle");
+  const [fadeToBlack, setFadeToBlack] = useState(false);
+
+
+  const changeScene = useCallback((next: Scene, line: string) => {
+    setFadeOut(true);
+    setShowChoices(false);
+    setTimeout(() => {
+      setScene(next);
+      setNpcLine(line);
+      setFadeOut(false);
+    }, 600);
+  }, []);
+
+  const handleVideoEnd = useCallback((ended: VideoState) => {
+    /*
+     * ended = 방금 끝난 비디오의 종류
+     * idle → effect, effect → idle (기본 루프)
+     * intro → fade-to-black → introDetail
+     * introDetail → fade-to-black → idle
+     */
+    if (ended === "idle") {
+      setVideoState("effect");
+      return;
+    }
+    if (ended === "effect") {
+      setVideoState("idle");
+      return;
+    }
+    if (ended === "intro") {
+      setFadeToBlack(true);
+      setTimeout(() => {
+        setVideoState("introDetail");
+        setNpcLine(NPC_LINES.selfIntroDetail);
+        setScene("selfIntroDetail");
+      }, 800);
+      setTimeout(() => setFadeToBlack(false), 1200);
+      return;
+    }
+    if (ended === "introDetail") {
+      setFadeToBlack(true);
+      setTimeout(() => {
+        setVideoState("idle");
+        setScene("main");
+        setNpcLine(NPC_LINES.back);
+        setShowChoices(false);
+      }, 800);
+      setTimeout(() => setFadeToBlack(false), 1200);
+      return;
+    }
+  }, []);
+
+  const enterSelfIntro = () => {
+    setVideoState("intro");
+    changeScene("selfIntro", NPC_LINES.selfIntro);
+  };
+
   return (
-    <div className="min-h-screen bg-[#FFFFFF]">
-      {/* Top Toolbar */}
-      <header className="sticky top-0 z-50 flex h-[76px] items-center justify-between border-b-[2px] border-black bg-white px-8">
-        <div className="flex items-center gap-3">
-          {/* Logo mark */}
-          <div className="flex h-[44px] w-[44px] items-center justify-center border-[2px] border-black">
-            <span className="font-[var(--font-serif)] text-lg font-semibold">C</span>
-          </div>
-          <div className="h-[32px] w-[1px] bg-black" />
-          <div className="flex h-[44px] items-center border-[2px] border-black px-4">
-            <span className="font-[var(--font-serif)] text-sm font-medium tracking-wide">PORTFOLIO</span>
-          </div>
-        </div>
+    <div className="relative h-dvh w-screen overflow-hidden bg-black font-sans text-neutral-100 select-none">
+      <VideoBackground
+        videoState={videoState}
+        fadeToBlack={fadeToBlack}
+        onVideoStateChange={handleVideoEnd}
+      />
 
-        <div className="flex items-center gap-3">
-          <a
-            href="https://github.com/jungcollin"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex h-[44px] items-center gap-2 border-[2px] border-black px-5 text-xs font-medium uppercase tracking-wider transition-colors duration-150 hover:bg-black hover:text-white"
-          >
-            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
-            </svg>
-            GitHub
-          </a>
-        </div>
-      </header>
+      {/* Overlays */}
+      <div className="pointer-events-none fixed inset-0 z-10 bg-black/20" />
+      <div className="vignette" />
+      <div className="film-grain" />
 
-      {/* Main Content Area */}
-      <main className="bg-[#F9FAFB]">
-        <div className="mx-auto max-w-[1200px] px-8 py-16">
-          {/* Hero / About Section */}
-          <section className="animate-fade-in-up stagger-1 mb-16">
-            <About />
-          </section>
-
-          {/* Projects Header */}
-          <div className="animate-fade-in-up stagger-2 mb-8 flex items-end justify-between border-b-[2px] border-black pb-4">
-            <div>
-              <h2 className="font-[var(--font-serif)] text-2xl font-semibold tracking-tight">
-                PROJECTS
-              </h2>
-              <p className="mt-1 text-xs font-light uppercase tracking-widest text-[#9CA3AF]">
-                Open Source & Experiments
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-[var(--font-serif)] text-sm font-medium">
-                ({projects.length})
-              </span>
-            </div>
-          </div>
-
-          {/* Projects Grid */}
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {projects.map((project, index) => (
-              <div
-                key={project.id}
-                className={`animate-fade-in-up stagger-${Math.min(index + 3, 6)}`}
-              >
-                <ProjectCard project={project} index={index} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </main>
-
-      {/* Contextual Hint Bar */}
-      <div className="fixed bottom-8 left-1/2 z-50 -translate-x-1/2 animate-fade-in-up">
-        <div className="flex items-center gap-3 border-[2px] border-black bg-white px-6 py-3">
-          <span className="text-[11px] font-light uppercase tracking-widest text-[#9CA3AF]">
-            Navigate
-          </span>
-          <span className="border border-[#E5E7EB] px-1.5 py-0.5 font-mono text-[10px]">
-            scroll
-          </span>
-          <span className="text-[11px] font-light uppercase tracking-widest text-[#9CA3AF]">
-            to explore projects
-          </span>
-        </div>
+      {/* Dust */}
+      <div className="pointer-events-none fixed inset-0 z-[15]">
+        {DUST.map((p) => (
+          <div
+            key={p.id}
+            className="dust-particle"
+            style={{
+              left: p.left,
+              bottom: "-10px",
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              opacity: p.opacity,
+              animationDuration: `${p.dur}s`,
+              animationDelay: `${p.delay}s`,
+            }}
+          />
+        ))}
       </div>
 
-      {/* Footer */}
-      <footer className="border-t-[2px] border-black bg-white px-8 py-8">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between">
-          <span className="text-[11px] font-light uppercase tracking-widest text-[#9CA3AF]">
-            Built with Next.js
-          </span>
-          <span className="font-[var(--font-serif)] text-xs font-medium">
-            jungcollin &copy; {new Date().getFullYear()}
-          </span>
-        </div>
-      </footer>
+      {/* UI */}
+      <div
+        className={`relative z-30 flex h-full flex-col transition-opacity duration-500 ${fadeOut ? "opacity-0" : "opacity-100"}`}
+      >
+        {scene === "main" && (
+          <DialogueUI
+            npcLine={npcLine}
+            showChoices={showChoices}
+            onTypingDone={() => setShowChoices(true)}
+            onSelfIntro={enterSelfIntro}
+          />
+        )}
+        {scene === "selfIntro" && (
+          <SelfIntroUI
+            npcLine={npcLine}
+            onBack={() => {
+              setVideoState("idle");
+              changeScene("main", NPC_LINES.back);
+            }}
+          />
+        )}
+        {scene === "selfIntroDetail" && (
+          <SelfIntroUI
+            npcLine={npcLine}
+            onBack={() => {
+              setVideoState("idle");
+              changeScene("main", NPC_LINES.back);
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
+
+/* ─── Video Background ───────────────────────── */
+
+function VideoBackground({
+  videoState,
+  fadeToBlack,
+  onVideoStateChange,
+}: {
+  videoState: VideoState;
+  fadeToBlack: boolean;
+  onVideoStateChange: (s: VideoState) => void;
+}) {
+  const idleRef = useRef<HTMLVideoElement>(null);
+  const effectRef = useRef<HTMLVideoElement>(null);
+  const introRef = useRef<HTMLVideoElement>(null);
+  const introDetailRef = useRef<HTMLVideoElement>(null);
+  const [hasVideo, setHasVideo] = useState(true);
+
+  /* videoState 변경 시: 나머지 전부 pause → 활성 비디오만 play */
+  useEffect(() => {
+    if (!hasVideo) return;
+    const all = { idle: idleRef, effect: effectRef, intro: introRef, introDetail: introDetailRef };
+    for (const [key, ref] of Object.entries(all)) {
+      if (key === videoState) {
+        if (ref.current) {
+          ref.current.currentTime = 0;
+          ref.current.play().catch(() => {});
+        }
+      } else {
+        ref.current?.pause();
+      }
+    }
+  }, [videoState, hasVideo]);
+
+  const videoClass =
+    "absolute inset-0 h-full w-full object-cover scale-[0.85]"; /* Fix 1: contain instead of cover */
+
+  if (!hasVideo) {
+    return (
+      <div className="absolute inset-0 z-0">
+        <div className="scene-saloon absolute inset-0" />
+        <div className="warm-light" />
+        <div className="warm-light-2" />
+        <div className="ambient-haze" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={`${BASE_PATH}/images/npc.png`}
+          alt=""
+          className="npc-idle absolute bottom-0 left-1/2 h-[75vh] max-h-[800px] -translate-x-1/2 object-contain object-bottom"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 z-0">
+      {/* idle → onEnded reports "idle" ended */}
+      <video
+        ref={idleRef}
+        autoPlay
+        muted
+        playsInline
+        onError={() => setHasVideo(false)}
+        onEnded={() => onVideoStateChange("idle")}
+        className={`${videoClass} ${videoState === "idle" ? "visible" : "invisible"}`}
+      >
+        <source src={`${BASE_PATH}/videos/npc-idle.mp4`} type="video/mp4" />
+      </video>
+
+      {/* effect → onEnded reports "effect" ended */}
+      <video
+        ref={effectRef}
+        muted
+        playsInline
+        onEnded={() => onVideoStateChange("effect")}
+        className={`${videoClass} ${videoState === "effect" ? "visible" : "invisible"}`}
+      >
+        <source src={`${BASE_PATH}/videos/npc-effect.mp4`} type="video/mp4" />
+      </video>
+
+      {/* intro → onEnded reports "intro" ended */}
+      <video
+        ref={introRef}
+        muted
+        playsInline
+        onEnded={() => onVideoStateChange("intro")}
+        className={`${videoClass} ${videoState === "intro" ? "visible" : "invisible"}`}
+      >
+        <source src={`${BASE_PATH}/videos/npc-intro.mp4`} type="video/mp4" />
+      </video>
+
+      {/* introDetail → onEnded reports "introDetail" ended */}
+      <video
+        ref={introDetailRef}
+        muted
+        playsInline
+        onEnded={() => onVideoStateChange("introDetail")}
+        className={`${videoClass} ${videoState === "introDetail" ? "visible" : "invisible"}`}
+      >
+        <source src={`${BASE_PATH}/videos/npc-intro-detail.mp4`} type="video/mp4" />
+      </video>
+
+      {/* Fade-to-black overlay */}
+      <div
+        className={`absolute inset-0 z-[3] bg-black transition-opacity duration-700 ${fadeToBlack ? "opacity-100" : "opacity-0"} pointer-events-none`}
+      />
+    </div>
+  );
+}
+
+/* ─── Dialogue UI ────────────────────────────── */
+
+function DialogueUI({
+  npcLine,
+  showChoices,
+  onTypingDone,
+  onSelfIntro,
+}: {
+  npcLine: string;
+  showChoices: boolean;
+  onTypingDone: () => void;
+  onSelfIntro: () => void;
+}) {
+  return (
+    <>
+      <div className="flex-1" />
+      <div className="dialogue-gradient px-6 pt-16 pb-6">
+        <div className="mx-auto max-w-2xl">
+          {/* NPC dialogue */}
+          <div className="mb-6 min-h-[3rem] text-center font-serif text-lg leading-relaxed text-amber-100 italic md:text-xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+            <TypeWriter
+              key={npcLine}
+              text={npcLine}
+              speed={35}
+              onComplete={onTypingDone}
+            />
+          </div>
+
+          {/* Horizontal scroll menu */}
+          <div
+            className={`transition-all duration-500 ${
+              showChoices
+                ? "opacity-100 translate-y-0"
+                : "pointer-events-none opacity-0 translate-y-4"
+            }`}
+          >
+            <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
+              {MENU_ITEMS.map((item, i) => {
+                const isLocked = !item.url && !item.action;
+                const baseClass =
+                  "group snap-start shrink-0 flex flex-col items-center gap-2 rounded-lg border px-5 py-4 min-w-[130px] text-center transition-all";
+
+                const content = (
+                  <>
+                    <span className="font-western text-[10px] tracking-wider text-amber-400 uppercase">
+                      {item.tag}
+                    </span>
+                    <span className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">
+                      {item.label}
+                    </span>
+                    <span className="text-[10px] text-white/50 leading-tight">
+                      {isLocked ? (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3 h-3 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                          </svg>
+                          {item.desc}
+                        </span>
+                      ) : (
+                        item.desc
+                      )}
+                    </span>
+                  </>
+                );
+
+                const style = {
+                  animationDelay: `${i * 0.08}s`,
+                };
+
+                if (item.action === "selfIntro") {
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={onSelfIntro}
+                      className={`${baseClass} border-amber-700/40 bg-black/50 hover:bg-amber-900/30 hover:border-amber-600/60 backdrop-blur-sm animate-[fadeSlideUp_0.4s_ease_both]`}
+                      style={style}
+                    >
+                      {content}
+                    </button>
+                  );
+                }
+
+                if (isLocked) {
+                  return (
+                    <div
+                      key={item.id}
+                      className={`${baseClass} border-white/10 bg-black/40 backdrop-blur-sm cursor-default animate-[fadeSlideUp_0.4s_ease_both]`}
+                      style={style}
+                    >
+                      {content}
+                    </div>
+                  );
+                }
+
+                return (
+                  <a
+                    key={item.id}
+                    href={item.url!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`${baseClass} border-amber-700/40 bg-black/50 hover:bg-amber-900/30 hover:border-amber-600/60 backdrop-blur-sm animate-[fadeSlideUp_0.4s_ease_both]`}
+                    style={style}
+                  >
+                    {content}
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─── Self Intro UI ──────────────────────────── */
+
+function SelfIntroUI({
+  npcLine,
+  onBack,
+}: {
+  npcLine: string;
+  onBack: () => void;
+}) {
+  const [showBack, setShowBack] = useState(false);
+
+  return (
+    <>
+      <div className="flex-1" />
+      <div className="dialogue-gradient px-6 pt-24 pb-10">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-8 min-h-[4rem] text-center font-serif text-lg leading-relaxed text-amber-100/90 italic md:text-xl">
+            <TypeWriter
+              key={npcLine}
+              text={npcLine}
+              speed={35}
+              onComplete={() => setShowBack(true)}
+            />
+          </div>
+
+          <div
+            className={`transition-all duration-500 ${
+              showBack
+                ? "opacity-100 translate-y-0"
+                : "pointer-events-none opacity-0 translate-y-4"
+            }`}
+          >
+            <button
+              onClick={onBack}
+              className="western-btn border border-amber-900/25 px-6 py-3 text-xs tracking-wider text-neutral-500 uppercase hover:text-amber-100"
+            >
+              &larr; 돌아가기
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
