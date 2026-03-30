@@ -324,87 +324,12 @@ function DialogueUI({
             />
           </div>
 
-          {/* Horizontal scroll menu */}
-          <div
-            className={`transition-all duration-500 ${
-              showChoices
-                ? "opacity-100 translate-y-0"
-                : "pointer-events-none opacity-0 translate-y-4"
-            }`}
-          >
-            <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide snap-x snap-mandatory">
-              {MENU_ITEMS.map((item, i) => {
-                const isLocked = !item.url && !item.action;
-                const baseClass =
-                  "group snap-start shrink-0 flex flex-col items-center gap-2 rounded-lg border px-5 py-4 min-w-[130px] text-center transition-all";
-
-                const content = (
-                  <>
-                    <span className="font-western text-[10px] tracking-wider text-amber-400 uppercase">
-                      {item.tag}
-                    </span>
-                    <span className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">
-                      {item.label}
-                    </span>
-                    <span className="text-[10px] text-white/50 leading-tight">
-                      {isLocked ? (
-                        <span className="flex items-center gap-1">
-                          <svg className="w-3 h-3 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                          </svg>
-                          {item.desc}
-                        </span>
-                      ) : (
-                        item.desc
-                      )}
-                    </span>
-                  </>
-                );
-
-                const style = {
-                  animationDelay: `${i * 0.08}s`,
-                };
-
-                if (item.action === "selfIntro") {
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={onSelfIntro}
-                      className={`${baseClass} border-amber-700/40 bg-black/50 hover:bg-amber-900/30 hover:border-amber-600/60 backdrop-blur-sm animate-[fadeSlideUp_0.4s_ease_both]`}
-                      style={style}
-                    >
-                      {content}
-                    </button>
-                  );
-                }
-
-                if (isLocked) {
-                  return (
-                    <div
-                      key={item.id}
-                      className={`${baseClass} border-white/10 bg-black/40 backdrop-blur-sm cursor-default animate-[fadeSlideUp_0.4s_ease_both]`}
-                      style={style}
-                    >
-                      {content}
-                    </div>
-                  );
-                }
-
-                return (
-                  <a
-                    key={item.id}
-                    href={item.url!}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`${baseClass} border-amber-700/40 bg-black/50 hover:bg-amber-900/30 hover:border-amber-600/60 backdrop-blur-sm animate-[fadeSlideUp_0.4s_ease_both]`}
-                    style={style}
-                  >
-                    {content}
-                  </a>
-                );
-              })}
-            </div>
-          </div>
+          {/* Arrow-navigated menu */}
+          <MenuCarousel
+            show={showChoices}
+            items={MENU_ITEMS}
+            onSelfIntro={onSelfIntro}
+          />
         </div>
       </div>
     </>
@@ -453,6 +378,178 @@ function SelfIntroUI({
         </div>
       </div>
     </>
+  );
+}
+
+/* ─── Menu Carousel ─────────────────────────── */
+
+function MenuCarousel({
+  show,
+  items,
+  onSelfIntro,
+}: {
+  show: boolean;
+  items: MenuItem[];
+  onSelfIntro: () => void;
+}) {
+  const [idx, setIdx] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const prev = useCallback(() => {
+    setIdx((c) => (c > 0 ? c - 1 : items.length - 1));
+  }, [items.length]);
+
+  const next = useCallback(() => {
+    setIdx((c) => (c < items.length - 1 ? c + 1 : 0));
+  }, [items.length]);
+
+  // keyboard arrows
+  useEffect(() => {
+    if (!show) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+      if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+      if (e.key === "Enter") {
+        const item = items[idx];
+        if (item.action === "selfIntro") onSelfIntro();
+        else if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [show, prev, next, idx, items, onSelfIntro]);
+
+  // scroll selected item into view
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const child = container.children[idx] as HTMLElement | undefined;
+    if (!child) return;
+    const scrollLeft = child.offsetLeft - container.offsetWidth / 2 + child.offsetWidth / 2;
+    container.scrollTo({ left: scrollLeft, behavior: "smooth" });
+  }, [idx]);
+
+  const baseClass =
+    "group shrink-0 flex flex-col items-center gap-2 rounded-lg border px-5 py-4 min-w-[130px] text-center transition-all duration-200";
+
+  const renderItem = (item: MenuItem, i: number) => {
+    const isLocked = !item.url && !item.action;
+    const isActive = i === idx;
+    const ringClass = isActive ? "ring-2 ring-amber-500/60 scale-105" : "opacity-60 hover:opacity-100";
+
+    const content = (
+      <>
+        <span className="font-western text-[10px] tracking-wider text-amber-400 uppercase">
+          {item.tag}
+        </span>
+        <span className="text-sm font-semibold text-white group-hover:text-amber-400 transition-colors">
+          {item.label}
+        </span>
+        <span className="text-[10px] text-white/50 leading-tight">
+          {isLocked ? (
+            <span className="flex items-center gap-1">
+              <svg className="w-3 h-3 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+              </svg>
+              {item.desc}
+            </span>
+          ) : (
+            item.desc
+          )}
+        </span>
+      </>
+    );
+
+    const style = { animationDelay: `${i * 0.08}s` };
+
+    if (item.action === "selfIntro") {
+      return (
+        <button
+          key={item.id}
+          onClick={() => { setIdx(i); onSelfIntro(); }}
+          className={`${baseClass} ${ringClass} border-amber-700/40 bg-black/50 hover:bg-amber-900/30 hover:border-amber-600/60 backdrop-blur-sm animate-[fadeSlideUp_0.4s_ease_both]`}
+          style={style}
+        >
+          {content}
+        </button>
+      );
+    }
+
+    if (isLocked) {
+      return (
+        <div
+          key={item.id}
+          onClick={() => setIdx(i)}
+          className={`${baseClass} ${ringClass} border-white/10 bg-black/40 backdrop-blur-sm cursor-default animate-[fadeSlideUp_0.4s_ease_both]`}
+          style={style}
+        >
+          {content}
+        </div>
+      );
+    }
+
+    return (
+      <a
+        key={item.id}
+        href={item.url!}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={() => setIdx(i)}
+        className={`${baseClass} ${ringClass} border-amber-700/40 bg-black/50 hover:bg-amber-900/30 hover:border-amber-600/60 backdrop-blur-sm animate-[fadeSlideUp_0.4s_ease_both]`}
+        style={style}
+      >
+        {content}
+      </a>
+    );
+  };
+
+  return (
+    <div
+      className={`transition-all duration-500 ${
+        show ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 translate-y-4"
+      }`}
+    >
+      <div className="flex items-center gap-2">
+        {/* Left arrow */}
+        <button
+          onClick={prev}
+          className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full border border-amber-700/40 bg-black/50 text-amber-400/80 backdrop-blur-sm transition-all hover:bg-amber-900/30 hover:text-amber-300"
+          aria-label="Previous"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+
+        {/* Items */}
+        <div
+          ref={scrollRef}
+          className="flex gap-3 overflow-x-hidden pb-2"
+        >
+          {items.map((item, i) => renderItem(item, i))}
+        </div>
+
+        {/* Right arrow */}
+        <button
+          onClick={next}
+          className="shrink-0 flex h-10 w-10 items-center justify-center rounded-full border border-amber-700/40 bg-black/50 text-amber-400/80 backdrop-blur-sm transition-all hover:bg-amber-900/30 hover:text-amber-300"
+          aria-label="Next"
+        >
+          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Keyboard hint */}
+      <div className="mt-3 flex items-center justify-center gap-2">
+        <kbd className="rounded border border-amber-900/30 bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-amber-400/60">&larr;</kbd>
+        <kbd className="rounded border border-amber-900/30 bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-amber-400/60">&rarr;</kbd>
+        <span className="text-[10px] tracking-wider text-white/30 uppercase">navigate</span>
+        <kbd className="ml-2 rounded border border-amber-900/30 bg-black/40 px-1.5 py-0.5 font-mono text-[10px] text-amber-400/60">Enter</kbd>
+        <span className="text-[10px] tracking-wider text-white/30 uppercase">select</span>
+      </div>
+    </div>
   );
 }
 
