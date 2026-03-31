@@ -118,15 +118,15 @@ function drawShared(ctx: CanvasRenderingContext2D, w: number, startY: number): n
     { num: "01", title: "Generator-Evaluator Separation",
       why: "LLM은 자기가 만든 코드를 관대하게 평가한다. 이 자기 편향은 모델이 발전해도 해결되지 않는 구조적 문제다.",
       how: "코드를 생성한 에이전트와 완전히 별도의 서브에이전트가 독립된 컨텍스트에서 검수한다." },
-    { num: "02", title: "Runtime Verification",
+    { num: "02", title: "Runtime Evaluator",
       why: '코드를 읽고 "맞는 것 같다"고 판단하는 것과 실행해서 확인하는 것은 근본적으로 다르다.',
-      how: 'Playwright/curl로 실제 실행하여 스크린샷과 응답 데이터로만 판단한다. 기본 자세: "아마 버그가 있을 것이다."' },
+      how: 'Playwright, curl, 대표 입력 실행으로 증거를 수집하고 PASS/FAIL/PARTIAL VERDICT로 종결한다.' },
     { num: "03", title: "Session Continuity",
       why: "컨텍스트가 길어지거나 스레드를 분리하면 모델은 초반 결정을 잊는다. 장기 작업에서는 명시적 핸드오프가 필요하다.",
-      how: "HANDOFF.md나 phase 문서(Plan/Design/Analysis)로 맥락을 넘긴다. 새 세션이나 새 스레드는 파일을 먼저 읽고 이어간다." },
+      how: "Claude는 Stop hook으로 HANDOFF.md를 자동 관리하고, Codex는 phase 문서와 thread handoff를 파일로 넘긴다. 새 세션은 파일을 먼저 읽고 이어간다." },
     { num: "04", title: "Minimal Harness",
       why: "모든 규칙은 '모델이 이것을 혼자 못한다'는 가설이다. 많을수록 자율성을 제한한다.",
-      how: '모델 발전 시 규칙을 제거하며 stress test. 실패에서 시작한다. "적게 넣어라."' },
+      how: '전역에는 구조적으로 필요한 것만 두고, 프로젝트 사실과 코딩 기준은 각 레포의 docs로 밀어낸다. "적게 넣어라."' },
   ];
 
   for (const p of principles) {
@@ -196,21 +196,21 @@ function drawClaudeTab(ctx: CanvasRenderingContext2D, w: number): number {
   // Direction
   ptText(ctx, "Claude Code as Commander", F.section, cw, 18, pad, y + 14, C.amber);
   y += 28;
-  const dirH = ptText(ctx, "Opus가 설계하고, Sonnet(Frontend)과 Codex(Backend)를 병렬 dispatch하여 구현시킨 뒤, 교차 검수와 Runtime QA로 품질을 보장하는 멀티에이전트 오케스트레이션.", F.body, cw, 18, pad, y + 12, C.white60);
+  const dirH = ptText(ctx, "Claude README의 정본은 'Global Configuration'이다. 전역에는 모델이 구조적으로 못하는 것만 두고, Opus 4.6 [1M] Commander가 Plan, Design, Evaluate를 맡으며 Sonnet 4.6과 GPT-5.3-codex를 병렬 dispatch한다. 프로젝트 사실은 shim이 아니라 docs가 단일 정본이다.", F.body, cw, 18, pad, y + 12, C.white60);
   y += dirH + 24;
 
   // Flow Diagram
-  ptText(ctx, "Commander Procedure (4-Step)", F.section, cw, 18, pad, y + 14, C.amber);
+  ptText(ctx, "Commander Architecture", F.section, cw, 18, pad, y + 14, C.amber);
   y += 28;
 
   const fy = y;
   const nw = 130, nh = 46;
   const nodes = [
-    { label: "Plan + Design", sub: "Opus (Commander)", x: cx, y: fy + 28 },
-    { label: "Frontend", sub: "Sonnet Agent", x: cx - 100, y: fy + 110 },
-    { label: "Backend", sub: "Codex CLI", x: cx + 100, y: fy + 110 },
-    { label: "Cross-Evaluate", sub: "claude review + Evaluator", x: cx, y: fy + 192 },
-    { label: "Runtime QA", sub: "Playwright / curl", x: cx, y: fy + 260 },
+    { label: "Commander", sub: "Opus 4.6 [1M]", x: cx, y: fy + 28 },
+    { label: "Frontend", sub: "Sonnet 4.6", x: cx - 100, y: fy + 110 },
+    { label: "Backend Expert", sub: "GPT-5.3-codex", x: cx + 100, y: fy + 110 },
+    { label: "Cross-Evaluate", sub: "Codex review + Evaluator", x: cx, y: fy + 192 },
+    { label: "Fix / Retry", sub: "max 3 loops", x: cx, y: fy + 260 },
   ];
 
   ctx.strokeStyle = C.amberBorder; ctx.lineWidth = 1.5;
@@ -220,9 +220,9 @@ function drawClaudeTab(ctx: CanvasRenderingContext2D, w: number): number {
   arw(ctx, nodes[2].x, nodes[2].y + nh / 2, nodes[3].x, nodes[3].y - nh / 2);
   arw(ctx, nodes[3].x, nodes[3].y + nh / 2, nodes[4].x, nodes[4].y - nh / 2);
 
-  ptText(ctx, "parallel dispatch", F.tiny, 100, 12, cx, fy + 74, C.amberDim, "center");
+  ptText(ctx, "docs/ as protocol", F.tiny, 100, 12, cx, fy + 74, C.amberDim, "center");
 
-  // retry loop
+  // runtime evaluator loop
   ctx.strokeStyle = "rgba(248,113,113,0.3)"; ctx.setLineDash([4, 4]);
   ctx.beginPath();
   ctx.moveTo(nodes[4].x + nw / 2 + 8, nodes[4].y);
@@ -230,7 +230,7 @@ function drawClaudeTab(ctx: CanvasRenderingContext2D, w: number): number {
   ctx.lineTo(w - pad - 8, nodes[0].y);
   ctx.lineTo(nodes[0].x + nw / 2 + 8, nodes[0].y);
   ctx.stroke(); ctx.setLineDash([]);
-  ptText(ctx, "FAIL: max 3 retry", F.tiny, 100, 12, w - pad - 12, fy + 150, "rgba(248,113,113,0.5)", "right");
+  ptText(ctx, "Runtime Evaluator -> FAIL -> loop", F.tiny, 150, 12, w - pad - 12, fy + 150, "rgba(248,113,113,0.5)", "right");
 
   for (const n of nodes) {
     const hl = n.sub.includes("Sonnet") || n.sub.includes("Codex");
@@ -245,20 +245,19 @@ function drawClaudeTab(ctx: CanvasRenderingContext2D, w: number): number {
   divider(ctx, pad, w, y); y += 20;
 
   // Harness files
-  ptText(ctx, "Harness Configuration", F.section, cw, 18, pad, y + 14, C.amber);
+  ptText(ctx, "README Surface", F.section, cw, 18, pad, y + 14, C.amber);
   ptText(ctx, "~/.claude/", F.tiny, 60, 12, pad + cw, y + 14, C.white25, "right");
   y += 28;
 
   const items = [
-    { file: "CLAUDE.md", desc: "Commander Procedure 4-Step 정의. Plan+Design → Dispatch → Cross-Evaluate → Fix." },
-    { file: "rules/HARNESS.md", desc: 'Generator-Evaluator 분리, Runtime Evaluator, Session Continuity를 정의. VERDICT 프로토콜과 adversarial probe 기준 포함.' },
-    { file: "agents/sonnet-coder.md", desc: "Frontend 전용 에이전트. Design의 Frontend 섹션만 구현. TDD 방식. Backend 접근 금지." },
-    { file: "agents/codex-backend.md", desc: "Backend 전용 에이전트. Design의 Backend 섹션만 구현. Frontend 접근 금지." },
-    { file: "agents/cross-evaluator.md", desc: '"절대 관대하게 보지 마라." 별도 컨텍스트에서 Design 기준 PASS/FAIL을 판단하고 구체적 수정 지시를 만든다.' },
-    { file: "agents/playwright-expert.md", desc: "실행 기반 QA 담당. UI 흐름 변경 시 Playwright로 실제 화면과 상호작용을 검증한다." },
-    { file: "hooks/session_handoff.sh", desc: "Stop hook. 미커밋 변경 감지 시 HANDOFF.md 자동 생성, 없으면 삭제. 세션 간 맥락 유실 방지." },
-    { file: "hooks/pre_commit_build.sh", desc: "PreToolUse hook. Bash 명령 실행 전 빌드 검증. 깨진 빌드 상태에서 커밋 방지." },
-    { file: "hooks/post_tool_use_format.sh", desc: "PostToolUse hook. Edit/Write 후 자동 포맷팅 실행. 코드 스타일 일관성 유지." },
+    { file: "CLAUDE.md", desc: "Entry point. Core Principles, Rule Priority, Commander Procedure, Git 제한을 둔다." },
+    { file: "settings.json", desc: "Opus 4.6 [1M], acceptEdits, high effort, ko, hooks, enabledPlugins를 정의한다." },
+    { file: "rules/HARNESS.md", desc: "Generator-Evaluator 분리, Runtime Evaluator, Session Continuity를 정의하고 VERDICT 프로토콜을 둔다." },
+    { file: "rules/CODING_STANDARD.md", desc: "전역 코딩 규칙을 두지 않고 레포의 docs/standards/CODING_STANDARD.md 포인터만 유지한다." },
+    { file: "hooks/", desc: "pre_commit_build, post_tool_use_format, session_handoff로 빌드 검증, 포맷팅, HANDOFF 자동 관리를 수행한다." },
+    { file: "commands/ + skills/", desc: "plan, verify, e2e 같은 커맨드와 git-issue, git-worktree, portless, codex-delegator 계열 스킬이 워크플로를 확장한다." },
+    { file: "agents/", desc: "sonnet-coder, codex-backend, cross-evaluator, playwright-expert가 역할별 실행과 검증을 맡는다." },
+    { file: "plugins / projects / statusline", desc: "플러그인 활성화, 프로젝트별 메모리, 커스텀 status line이 전역 운영 경험을 구성한다." },
   ];
 
   items.forEach((it) => {
@@ -279,28 +278,31 @@ function drawCodexTab(ctx: CanvasRenderingContext2D, w: number): number {
   // Direction
   ptText(ctx, "Codex as Independent Operator", F.section, cw, 18, pad, y + 14, C.purple);
   y += 28;
-  const dirH = ptText(ctx, "Codex는 /pdca를 유일한 진입점으로 두고 phase별 스레드와 프로파일을 분리한다. Python 기반 pdca-native 런타임이 중앙 상태, 문서 경로, feature lock, 검증 루프를 관리하며, canonical agent/skill/plugin 세트를 조합해 실행한다. Claude-first 레포에서는 Opus의 Backend Expert로도 동작한다.", F.body, cw, 18, pad, y + 12, C.white60);
+  const dirH = ptText(ctx, "Codex README의 정본은 'codex-home Harness'다. 여러 머신에서 공용으로 쓰는 운영 환경으로 config, prompts, skills, docs, runtime scripts를 git으로 관리하고 비밀값과 로컬 상태를 분리한다. 사용자 진입점은 /pdca이고, pdca-native 런타임이 phase, docs, locks, verification을 제어한다.", F.body, cw, 18, pad, y + 12, C.white60);
   y += dirH + 24;
 
   // Thread/Profile Flow
-  ptText(ctx, "Thread & Profile Separation", F.section, cw, 18, pad, y + 14, C.purple);
+  ptText(ctx, "PDCA Thread Routing", F.section, cw, 18, pad, y + 14, C.purple);
   y += 28;
 
   const fy = y;
-  const bw = 150, bh = 56;
+  const bw = 148, bh = 56;
   const threads = [
-    { label: "Planning Thread", sub: "gpt54_high profile", phase: "PM + Plan + Design", x: cx, y: fy + 30, c: C.blue },
-    { label: "Impl Thread", sub: "codex53_xhigh profile", phase: "Do", x: cx, y: fy + 110, c: C.green },
-    { label: "Eval Thread", sub: "gpt54_high profile", phase: "Analyze + Report", x: cx, y: fy + 190, c: C.amber },
+    { label: "Planning Thread", sub: "gpt54_high", phase: "pm / plan / design", x: cx, y: fy + 30, c: C.blue },
+    { label: "Implementation", sub: "codex53_xhigh", phase: "do", x: cx, y: fy + 110, c: C.green },
+    { label: "Evaluation", sub: "gpt54_high", phase: "analyze / report", x: cx, y: fy + 190, c: C.amber },
+    { label: "Archive", sub: "runtime cleanup", phase: "archive / cleanup", x: cx, y: fy + 270, c: C.red },
   ];
 
   ctx.strokeStyle = C.purpleBorder; ctx.lineWidth = 1.5;
   arw(ctx, cx, threads[0].y + bh / 2, cx, threads[1].y - bh / 2);
   arw(ctx, cx, threads[1].y + bh / 2, cx, threads[2].y - bh / 2);
+  arw(ctx, cx, threads[2].y + bh / 2, cx, threads[3].y - bh / 2);
 
   // handoff labels
   ptText(ctx, "docs + diff handoff", F.tiny, 120, 12, cx + 85, fy + 74, C.purpleBorder, "left");
   ptText(ctx, "docs + diff handoff", F.tiny, 120, 12, cx + 85, fy + 154, C.purpleBorder, "left");
+  ptText(ctx, "match rate + report", F.tiny, 120, 12, cx + 85, fy + 234, C.purpleBorder, "left");
 
   threads.forEach((t) => {
     ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.strokeStyle = C.purpleBorder; ctx.lineWidth = 1;
@@ -310,23 +312,24 @@ function drawCodexTab(ctx: CanvasRenderingContext2D, w: number): number {
     ptText(ctx, t.phase, F.nodeSub, bw - 16, 13, t.x, t.y + 20, C.white40, "center");
   });
 
-  y = fy + 230;
+  y = fy + 310;
   divider(ctx, pad, w, y); y += 20;
 
   // Harness details
-  ptText(ctx, "Harness Configuration", F.section, cw, 18, pad, y + 14, C.purple);
+  ptText(ctx, "README Surface", F.section, cw, 18, pad, y + 14, C.purple);
   ptText(ctx, "~/.codex/", F.tiny, 60, 12, pad + cw, y + 14, C.white25, "right");
   y += 28;
 
   const items = [
-    { label: "config.toml as Source of Truth", desc: "모델 정책, trusted roots, approval/sandbox 기본값, MCP 서버, curated plugin 활성화가 모두 config.toml에 모인다. 기본 상위 모델은 gpt-5.4 / high." },
-    { label: "PDCA Entry Surface", desc: "사용자 진입점은 /pdca pm|plan|design|do|analyze|report|archive. 내부 실행은 bin/codex-task design|implement|review와 프로필 매핑으로 라우팅된다." },
-    { label: "PDCA Native Runtime", desc: "pdca_state.py, pdca_docs.py, pdca_harness.py, pdca_team.py가 ~/.codex/pdca 중앙 상태, 문서 경로, feature lock, pre/post-write 가드, run-dev/observe 루프를 관리한다." },
-    { label: "Profile + Thread Separation", desc: "gpt54_high는 기획/설계/리뷰, codex53_xhigh는 구현에 사용한다. PM/Plan/Design, Do, Analyze/Report를 서로 다른 스레드로 나누고 파일로 handoff한다." },
-    { label: "Skills + Plugins", desc: "skills/에는 pdca-native, playwright, openai-docs 같은 재사용 스킬이 들어 있고, plugin 계층은 GitHub, Slack, Calendar, Figma, Stripe, Build Web/iOS, Game Studio를 연결한다." },
-    { label: "Canonical Agent Set", desc: "현재는 9개 PDCA team role과 5개 specialist, 총 14개 TOML agent만 canonical로 유지한다. discovery~security가 팀 역할이고 gap-detector, code-analyzer, design-validator, report-generator, ui-evaluator가 specialist다." },
-    { label: "Compact Baseline + Verify", desc: "최소 하네스는 AGENTS.md, architecture/runbook/glossary/conventions, docs/generated, .codex/pdca.json으로 정의한다. 변경 후에는 bin/codex-home-verify와 PDCA runtime test로 검증한다." },
-    { label: "3-Tier Integration", desc: "Claude-first 레포에서는 Codex가 Backend Expert로 동작한다. docs/02-design의 Backend 섹션만 구현하고 Shared를 계약으로 사용하며, 필요하면 별도 worktree에서 분리 실행한다." },
+    { label: "config.toml", desc: "모델 정책, trusted roots, approval/sandbox 기본값, MCP 서버, plugin 활성화의 정본이다. 기본 상위 모델은 gpt-5.4 / high다." },
+    { label: "bin/ + prompts/", desc: "codex-task, codex-home-verify, project-bootstrap과 design-thread, implement-thread, review-thread 프롬프트가 운영 진입점을 만든다." },
+    { label: "templates/ + docs/", desc: "plan, design, do, analysis, report 템플릿과 architecture, runbook, model-profiles, thread-handoffs 같은 운영 문서가 함께 간다." },
+    { label: "skills/pdca-native", desc: "pdca_state.py, pdca_docs.py, pdca_harness.py, pdca_team.py로 ~/.codex/pdca 중앙 상태와 문서 경로, feature lock, runtime loop를 관리한다." },
+    { label: "PDCA Surface", desc: "README 기준 사용자 흐름은 /pdca pm, plan, design, do, analyze, report, archive이고 런타임 표면에는 iterate, cleanup, team, status, next도 포함된다." },
+    { label: "Custom Agents", desc: "PDCA 팀 9개와 specialist 5개, 총 14개 TOML agent를 canonical 세트로 유지한다." },
+    { label: "Compact Baseline", desc: "AGENTS.md, architecture/runbook/glossary/conventions, docs/generated, canonical PDCA 디렉터리와 .codex/pdca.json이 최소 하네스다." },
+    { label: "Verification", desc: "bin/codex-home-verify와 test_pdca_runtime.py가 프로필 해석, 프롬프트, 런타임 메타데이터, bootstrap smoke test까지 점검한다." },
+    { label: "3-Tier Backend Expert", desc: "Claude-first 저장소에서는 docs/02-design의 Backend 섹션만 구현하고 Shared를 계약으로 사용한다." },
   ];
 
   items.forEach((it) => {
