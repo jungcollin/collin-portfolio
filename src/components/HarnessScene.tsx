@@ -121,13 +121,10 @@ function drawShared(ctx: CanvasRenderingContext2D, w: number, startY: number): n
     { num: "02", title: "Runtime Verification",
       why: '코드를 읽고 "맞는 것 같다"고 판단하는 것과 실행해서 확인하는 것은 근본적으로 다르다.',
       how: 'Playwright/curl로 실제 실행하여 스크린샷과 응답 데이터로만 판단한다. 기본 자세: "아마 버그가 있을 것이다."' },
-    { num: "03", title: "Multi-Layer Code Review",
-      why: "하나의 시각만으로는 놓치는 결함이 있다. 리뷰도 한 번이 아니라 여러 겹으로 검증해야 한다.",
-      how: "Codex 2-Pass Review (1차 분석 → Claude 검증 → 2차 판정) + Cross-Evaluator (Design 기준 PASS/FAIL) + Runtime QA." },
-    { num: "04", title: "Auto-Delegation on Failure",
-      why: "같은 모델이 같은 문제를 반복하면 같은 실패를 반복한다.",
-      how: "2회 실패 시 자동으로 다른 모델에 위임한다. 다른 시각에서 분석하여 해결." },
-    { num: "05", title: "Minimal Harness",
+    { num: "03", title: "Session Continuity",
+      why: "컨텍스트가 길어지면 모델은 초반 결정을 잊는다. 자동 압축이 대부분 커버하지만 장기 작업에서는 명시적 핸드오프가 필요하다.",
+      how: "HANDOFF.md를 프로젝트 루트에 작성하고 /clear. 새 세션 시작 시 반드시 먼저 읽는다. 조건부 활성." },
+    { num: "04", title: "Minimal Harness",
       why: "모든 규칙은 '모델이 이것을 혼자 못한다'는 가설이다. 많을수록 자율성을 제한한다.",
       how: '모델 발전 시 규칙을 제거하며 stress test. 실패에서 시작한다. "적게 넣어라."' },
   ];
@@ -212,7 +209,7 @@ function drawClaudeTab(ctx: CanvasRenderingContext2D, w: number): number {
     { label: "Plan + Design", sub: "Opus (Commander)", x: cx, y: fy + 28 },
     { label: "Frontend", sub: "Sonnet Agent", x: cx - 100, y: fy + 110 },
     { label: "Backend", sub: "Codex CLI", x: cx + 100, y: fy + 110 },
-    { label: "Code Review", sub: "Codex 2-Pass + Evaluator", x: cx, y: fy + 192 },
+    { label: "Cross-Evaluate", sub: "claude review + Evaluator", x: cx, y: fy + 192 },
     { label: "Runtime QA", sub: "Playwright / curl", x: cx, y: fy + 260 },
   ];
 
@@ -259,8 +256,7 @@ function drawClaudeTab(ctx: CanvasRenderingContext2D, w: number): number {
     { file: "agents/sonnet-coder.md", desc: "Frontend 전용 에이전트. Backend 구현 금지. Design의 Frontend 섹션만 구현." },
     { file: "agents/codex-backend.md", desc: "Backend 전용 에이전트. Frontend 구현 금지. Design의 Backend 섹션만 구현." },
     { file: "agents/cross-evaluator.md", desc: '"절대 관대하게 보지 마라." Design 기준 항목별 PASS/FAIL. 구체적 개선 지시.' },
-    { file: "skills/codex-review/", desc: "Codex CLI 2-Pass 리뷰. 1차 분석 → Claude False Positive 필터 → 2차 최종 판정." },
-    { file: "skills/codex-delegator/", desc: "2회 실패 시 자동 Codex 위임. 복잡 알고리즘/레이스컨디션에 효과적." },
+    { file: "claude review (built-in)", desc: "Claude Code 빌트인 PR 리뷰. 멀티에이전트 병렬 분석, 인라인 코멘트, 오탐 필터링. Cross-Evaluator와 병행." },
   ];
 
   items.forEach((it) => {
