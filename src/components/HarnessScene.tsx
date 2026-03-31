@@ -200,7 +200,7 @@ function drawClaudeTab(ctx: CanvasRenderingContext2D, w: number): number {
   y += dirH + 24;
 
   // Flow Diagram
-  ptText(ctx, "Commander Procedure (5-Step)", F.section, cw, 18, pad, y + 14, C.amber);
+  ptText(ctx, "Commander Procedure (4-Step)", F.section, cw, 18, pad, y + 14, C.amber);
   y += 28;
 
   const fy = y;
@@ -250,13 +250,14 @@ function drawClaudeTab(ctx: CanvasRenderingContext2D, w: number): number {
   y += 28;
 
   const items = [
-    { file: "CLAUDE.md", desc: "Commander Procedure 5-Step 정의. 스킬 출력과 무관하게 멈추지 않고 다음 단계 실행." },
-    { file: "rules/HARNESS.md", desc: '하네스 설계 원칙. "적게 넣어라", 살아있는 가설. 모델 발전 시 규칙 제거.' },
-    { file: "rules/WORKFLOW.md", desc: "Task Router (작업 유형별 담당 모델), Reasoning First (추론/구현 분리)." },
-    { file: "agents/sonnet-coder.md", desc: "Frontend 전용 에이전트. Backend 구현 금지. Design의 Frontend 섹션만 구현." },
-    { file: "agents/codex-backend.md", desc: "Backend 전용 에이전트. Frontend 구현 금지. Design의 Backend 섹션만 구현." },
+    { file: "CLAUDE.md", desc: "Commander Procedure 4-Step 정의. Plan+Design → Dispatch → Cross-Evaluate → Fix." },
+    { file: "rules/HARNESS.md", desc: 'Generator-Evaluator 분리, Runtime Verification, Session Continuity. "적게 넣어라", 살아있는 가설.' },
+    { file: "agents/sonnet-coder.md", desc: "Frontend 전용 에이전트. Design의 Frontend 섹션만 구현. TDD 방식. Backend 접근 금지." },
+    { file: "agents/codex-backend.md", desc: "Backend 전용 에이전트. Design의 Backend 섹션만 구현. Frontend 접근 금지." },
     { file: "agents/cross-evaluator.md", desc: '"절대 관대하게 보지 마라." Design 기준 항목별 PASS/FAIL. 구체적 개선 지시.' },
-    { file: "claude review (built-in)", desc: "Claude Code 빌트인 PR 리뷰. 멀티에이전트 병렬 분석, 인라인 코멘트, 오탐 필터링. Cross-Evaluator와 병행." },
+    { file: "hooks/session_handoff.sh", desc: "Stop hook. 미커밋 변경 감지 시 HANDOFF.md 자동 생성, 없으면 삭제. 세션 간 맥락 유실 방지." },
+    { file: "hooks/pre_commit_build.sh", desc: "PreToolUse hook. Bash 명령 실행 전 빌드 검증. 깨진 빌드 상태에서 커밋 방지." },
+    { file: "hooks/post_tool_use_format.sh", desc: "PostToolUse hook. Edit/Write 후 자동 포맷팅 실행. 코드 스타일 일관성 유지." },
   ];
 
   items.forEach((it) => {
