@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import TypeWriter from "@/components/TypeWriter";
-import HarnessScene from "@/components/HarnessScene";
 
 const BASE_PATH = process.env.__NEXT_ROUTER_BASEPATH ?? "";
 
@@ -22,12 +21,11 @@ interface MenuItem {
   label: string;
   desc: string;
   url: string | null;
-  action?: "selfIntro" | "harness";
+  action?: "selfIntro";
 }
 
 const MENU_ITEMS: MenuItem[] = [
   { id: "wanted", tag: "WANTED", label: "더지형", desc: "이 사내는 누구인가?", url: null, action: "selfIntro" },
-  { id: "harness", tag: "IN USE", label: "AI Harness", desc: "이 포트폴리오에 적용 중", url: null, action: "harness" },
   { id: "story", tag: "Grafolio", label: "더지형 이야기", desc: "vlog", url: "https://grafolio.ogq.me/profile/%EB%8D%94%EC%A7%80%ED%98%95/project" },
   { id: "one-life-relay", tag: "Game", label: "ONE LIFE RELAY", desc: "스테이지 제작, 릴레이 게임", url: "https://jungcollin.github.io/series_game" },
   { id: "lucky-bite", tag: "LuckyBite", label: "확률 시뮬레이터", desc: "비공개", url: null },
@@ -67,7 +65,6 @@ export default function Home() {
   const [fadeOut, setFadeOut] = useState(false);
   const [videoState, setVideoState] = useState<VideoState>("idle");
   const [fadeToBlack, setFadeToBlack] = useState(false);
-  const [showHarness, setShowHarness] = useState(false);
 
   const changeScene = useCallback((next: Scene, line: string) => {
     setFadeOut(true);
@@ -122,10 +119,6 @@ export default function Home() {
     changeScene("selfIntro", NPC_LINES.selfIntro);
   };
 
-  const enterHarness = () => {
-    setShowHarness(true);
-  };
-
   return (
     <div className="relative h-dvh w-screen overflow-hidden bg-black font-sans text-neutral-100 select-none">
       <VideoBackground
@@ -168,7 +161,6 @@ export default function Home() {
             showChoices={showChoices}
             onTypingDone={() => setShowChoices(true)}
             onSelfIntro={enterSelfIntro}
-            onHarness={enterHarness}
           />
         )}
         {scene === "selfIntro" && (
@@ -191,10 +183,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Harness Popup */}
-      {showHarness && (
-        <HarnessScene onClose={() => setShowHarness(false)} />
-      )}
     </div>
   );
 }
@@ -315,13 +303,11 @@ function DialogueUI({
   showChoices,
   onTypingDone,
   onSelfIntro,
-  onHarness,
 }: {
   npcLine: string;
   showChoices: boolean;
   onTypingDone: () => void;
   onSelfIntro: () => void;
-  onHarness: () => void;
 }) {
   return (
     <>
@@ -343,7 +329,6 @@ function DialogueUI({
             show={showChoices}
             items={MENU_ITEMS}
             onSelfIntro={onSelfIntro}
-            onHarness={onHarness}
           />
         </div>
       </div>
@@ -402,12 +387,10 @@ function MenuCarousel({
   show,
   items,
   onSelfIntro,
-  onHarness,
 }: {
   show: boolean;
   items: MenuItem[];
   onSelfIntro: () => void;
-  onHarness: () => void;
 }) {
   const [idx, setIdx] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -429,13 +412,12 @@ function MenuCarousel({
       if (e.key === "Enter") {
         const item = items[idx];
         if (item.action === "selfIntro") onSelfIntro();
-        else if (item.action === "harness") onHarness();
         else if (item.url) window.open(item.url, "_blank", "noopener,noreferrer");
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [show, prev, next, idx, items, onSelfIntro, onHarness]);
+  }, [show, prev, next, idx, items, onSelfIntro]);
 
   // scroll selected item into view
   useEffect(() => {
@@ -481,7 +463,7 @@ function MenuCarousel({
     const style = { animationDelay: `${i * 0.08}s` };
 
     if (item.action) {
-      const actionHandler = item.action === "selfIntro" ? onSelfIntro : onHarness;
+      const actionHandler = onSelfIntro;
       return (
         <button
           key={item.id}
